@@ -1913,7 +1913,12 @@ public class Settings implements Serializable {
   public static final String ELASTIC_LOG_INDEX_REGEX = ".*_" + ELASTIC_LOGS_INDEX + "-\\d{4}.\\d{2}.\\d{2}";
   public static final String ELASTIC_SERVING_INDEX_REGEX = ".*_" + ELASTIC_SERVING_INDEX+ "-\\d{4}.\\d{2}.\\d{2}";
   public static final String ELASTIC_KAGENT_INDEX_REGEX = ".*_" + ELASTIC_KAGENT_INDEX + "-\\d{4}.\\d{2}.\\d{2}";
-
+  //Other Elastic indexes
+  public static final String ELASTIC_INDEX_FILE_PROVENANCE = "fileprovenance";
+  public static final String ELASTIC_INDEX_FILE_PROVENANCE_DEFAULT_TYPE = "_doc";
+  public static final String ELASTIC_INDEX_APP_PROVENANCE = "appprovenance";
+  public static final String ELASTIC_INDEX_APP_PROVENANCE_DEFAULT_TYPE = "_doc";
+  
   public String getHopsworksTmpCertDir() {
     return Paths.get(getCertsDir(), "transient").toString();
   }

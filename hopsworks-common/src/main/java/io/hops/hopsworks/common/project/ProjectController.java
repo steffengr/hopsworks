@@ -705,33 +705,33 @@ public class ProjectController {
 
     switch (service) {
       case JUPYTER:
-        addServiceDataset(project, user, Settings.ServiceDataset.JUPYTER, dfso, udfso);
+        addServiceDataset(project, user, Settings.ServiceDataset.JUPYTER, dfso, udfso, true);
         if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.JOBS)) {
           addKibana(project);
-          addServiceDataset(project, user, Settings.ServiceDataset.EXPERIMENTS, dfso, udfso);
+          addServiceDataset(project, user, Settings.ServiceDataset.EXPERIMENTS, dfso, udfso, true);
         }
         break;
       case HIVE:
         addServiceHive(project, user, dfso);
         break;
       case SERVING:
-        futureList.add(addServiceServing(project, user, dfso, udfso));
+        futureList.add(addServiceServing(project, user, dfso, udfso, true));
         break;
       case JOBS:
         if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.JUPYTER)) {
-          addServiceDataset(project, user, Settings.ServiceDataset.EXPERIMENTS, dfso, udfso);
+          addServiceDataset(project, user, Settings.ServiceDataset.EXPERIMENTS, dfso, udfso, true);
           addKibana(project);
         }
         break;
       case FEATURESTORE:
         //Note: Order matters here. Training Dataset should be created before the Featurestore
-        addServiceDataset(project, user, Settings.ServiceDataset.TRAININGDATASETS, dfso, udfso);
-        addServiceDataset(project, user, Settings.ServiceDataset.DATAVALIDATION, dfso, udfso);
+        addServiceDataset(project, user, Settings.ServiceDataset.TRAININGDATASETS, dfso, udfso, true);
+        addServiceDataset(project, user, Settings.ServiceDataset.DATAVALIDATION, dfso, udfso, false);
         addServiceFeaturestore(project, user, dfso);
         //Enable Jobs service at the same time as featurestore
         if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.JOBS)) {
           if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.JUPYTER)) {
-            addServiceDataset(project, user, Settings.ServiceDataset.EXPERIMENTS, dfso, udfso);
+            addServiceDataset(project, user, Settings.ServiceDataset.EXPERIMENTS, dfso, udfso, true);
             addKibana(project);
           }
         }
@@ -746,14 +746,15 @@ public class ProjectController {
 
   private void addServiceDataset(Project project, Users user,
       Settings.ServiceDataset ds, DistributedFileSystemOps dfso,
-      DistributedFileSystemOps udfso) throws DatasetException, HopsSecurityException, ProjectException {
+      DistributedFileSystemOps udfso, boolean metaEnabled) 
+    throws DatasetException, HopsSecurityException, ProjectException {
     try {
       String datasetName = ds.getName();
       //Training Datasets should be shareable, prefix with project name to avoid naming conflicts when sharing
       if(ds == Settings.ServiceDataset.TRAININGDATASETS)
         datasetName = project.getName() + "_" + datasetName;
       datasetController.createDataset(user, project, datasetName, ds.
-          getDescription(), -1, false, false, true, dfso);
+          getDescription(), -1, metaEnabled, false, true, dfso);
       datasetController.generateReadme(udfso, datasetName,
           ds.getDescription(), project.getName());
 
@@ -788,10 +789,10 @@ public class ProjectController {
   }
 
   private Future<CertificatesController.CertsResult> addServiceServing(Project project, Users user,
-                                 DistributedFileSystemOps dfso, DistributedFileSystemOps udfso)
+                                 DistributedFileSystemOps dfso, DistributedFileSystemOps udfso, boolean metaEnabled)
       throws ProjectException, DatasetException, HopsSecurityException, UserException {
 
-    addServiceDataset(project, user, Settings.ServiceDataset.SERVING, dfso, udfso);
+    addServiceDataset(project, user, Settings.ServiceDataset.SERVING, dfso, udfso, metaEnabled);
     elasticController.createIndexPattern(project, project.getName().toLowerCase() + "_serving-*");
     // If Kafka is not enabled for the project, enable it
     if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.KAFKA)) {

@@ -16,6 +16,7 @@
 
 package io.hops.hopsworks.api.featurestore.trainingdataset;
 
+import com.google.gson.Gson;
 import io.hops.hopsworks.api.featurestore.util.FeaturestoreUtil;
 import io.hops.hopsworks.api.filter.AllowedProjectRoles;
 import io.hops.hopsworks.api.filter.Audience;
@@ -26,6 +27,7 @@ import io.hops.hopsworks.common.dao.dataset.Dataset;
 import io.hops.hopsworks.common.dao.featurestore.Featurestore;
 import io.hops.hopsworks.common.dao.featurestore.FeaturestoreController;
 import io.hops.hopsworks.common.dao.featurestore.FeaturestoreDTO;
+import io.hops.hopsworks.common.dao.featurestore.feature.FeatureDTO;
 import io.hops.hopsworks.common.dao.featurestore.storageconnector.hopsfs.FeaturestoreHopsfsConnector;
 import io.hops.hopsworks.common.dao.featurestore.storageconnector.hopsfs.FeaturestoreHopsfsConnectorFacade;
 import io.hops.hopsworks.common.dao.featurestore.trainingdataset.TrainingDatasetController;
@@ -38,8 +40,11 @@ import io.hops.hopsworks.common.dao.project.Project;
 import io.hops.hopsworks.common.dao.user.Users;
 import io.hops.hopsworks.common.dao.user.activity.ActivityFacade;
 import io.hops.hopsworks.common.dao.user.activity.ActivityFlag;
+import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
+import io.hops.hopsworks.common.hdfs.DistributedFsService;
 import io.hops.hopsworks.exceptions.DatasetException;
 import io.hops.hopsworks.exceptions.FeaturestoreException;
+import io.hops.hopsworks.exceptions.GenericException;
 import io.hops.hopsworks.exceptions.HopsSecurityException;
 import io.hops.hopsworks.exceptions.ProjectException;
 import io.hops.hopsworks.jwt.annotation.JWTRequired;
@@ -47,6 +52,7 @@ import io.hops.hopsworks.restutils.RESTCodes;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import org.apache.hadoop.fs.XAttrSetFlag;
 
 import javax.ejb.EJB;
 import javax.ejb.TransactionAttribute;
@@ -66,6 +72,9 @@ import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -96,6 +105,8 @@ public class TrainingDatasetService {
   private DsUpdateOperations dsUpdateOperations;
   @EJB
   private FeaturestoreHopsfsConnectorFacade featurestoreHopsfsConnectorFacade;
+  @EJB
+  private DistributedFsService dfs;
 
   private Project project;
   private Featurestore featurestore;
@@ -158,7 +169,7 @@ public class TrainingDatasetService {
   @ApiOperation(value = "Create training dataset for a featurestore",
       response = TrainingDatasetDTO.class)
   public Response createTrainingDataset(@Context SecurityContext sc, TrainingDatasetDTO trainingDatasetDTO)
-    throws DatasetException, HopsSecurityException, ProjectException, FeaturestoreException {
+    throws DatasetException, HopsSecurityException, ProjectException, FeaturestoreException, GenericException {
     Users user = jWTHelper.getUserPrincipal(sc);
     TrainingDatasetDTO createdTrainingDatasetDTO = null;
     if(trainingDatasetDTO.getTrainingDatasetType() == TrainingDatasetType.HOPSFS_TRAINING_DATASET){
@@ -190,6 +201,7 @@ public class TrainingDatasetService {
           throw e;
         }
       }
+      setXAttrTrainingFeatures(fullPath.toString(), trainingDatasetDTO.getFeatures());
       Inode inode = inodeFacade.getInodeAtPath(fullPath.toString());
       hopsfsTrainingDatasetDTO.setInodeId(inode.getId());
       createdTrainingDatasetDTO = trainingDatasetController.createTrainingDataset(user, featurestore,
@@ -204,6 +216,85 @@ public class TrainingDatasetService {
         new GenericEntity<TrainingDatasetDTO>(createdTrainingDatasetDTO) {};
     return noCacheResponse.getNoCacheResponseBuilder(Response.Status.CREATED).entity(createdTrainingDatasetDTOGeneric)
       .build();
+  }
+
+  private void setXAttrTrainingFeatures(String tdPath, List<FeatureDTO> features) throws GenericException {
+    Gson gson = new Gson();
+    XAttrFeatures jsonFeatures = new XAttrFeatures();
+    for(FeatureDTO feature : features) {
+      jsonFeatures.addFeature(feature);
+    }
+
+    byte[] featuresValue = gson.toJson(jsonFeatures).getBytes();
+    DistributedFileSystemOps dfso = dfs.getDfsOps();
+    EnumSet<XAttrSetFlag> flags = EnumSet.noneOf(XAttrSetFlag.class);
+    flags.add(XAttrSetFlag.CREATE);
+    try {
+      dfso.setXAttr(tdPath, "provenance.features", featuresValue, flags);
+    } catch (IOException e) {
+      throw new GenericException(RESTCodes.GenericErrorCode.ILLEGAL_STATE, Level.INFO,
+        "xattrs persistance exception");
+    }
+  }
+
+  private static class XAttrFeatures {
+    private List<XAttrFeature> features = new LinkedList<>();
+
+    public XAttrFeatures() {}
+
+    public XAttrFeatures(List<XAttrFeature> features) {
+      this.features = features;
+    }
+
+    public List<XAttrFeature> getFeatures() {
+      return features;
+    }
+
+    public void setFeatures(List<XAttrFeature> features) {
+      this.features = features;
+    }
+
+    public void addFeature(FeatureDTO feature) {
+      features.add(new XAttrFeature("group", feature.getName(), "version"));
+    }
+  }
+
+  private static class XAttrFeature {
+    private String group;
+    private String name;
+    private String version;
+
+    public XAttrFeature() {}
+
+    public XAttrFeature(String group, String name, String version) {
+      this.group = group;
+      this.name = name;
+      this.version = version;
+    }
+
+    public String getGroup() {
+      return group;
+    }
+
+    public void setGroup(String group) {
+      this.group = group;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getVersion() {
+      return version;
+    }
+
+    public void setVersion(String version) {
+      this.version = version;
+    }
   }
 
   /**

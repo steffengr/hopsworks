@@ -182,6 +182,7 @@ public class TrainingDatasetController {
       trainingDatasetDTO.getFeaturesHistogram(), trainingDatasetDTO.getClusterAnalysis());
     // Store features
     featurestoreFeatureController.updateTrainingDatasetFeatures(trainingDataset, trainingDatasetDTO.getFeatures());
+
     return convertTrainingDatasetToDTO(trainingDataset);
   }
 
