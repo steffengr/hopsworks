@@ -395,7 +395,7 @@ public class ProjectController {
           "project: " + projectName, ex.getMessage(), ex);
       }
       LOGGER.log(Level.FINE, "PROJECT CREATION TIME. Step 8 (logs): {0}", System.currentTimeMillis() - startTime);
-  
+
       if (environmentController.condaEnabledHosts()) {
         try {
           environmentController.createEnv("3.6", true, project);//TODO: use variables for version
@@ -724,9 +724,10 @@ public class ProjectController {
         }
         break;
       case FEATURESTORE:
-        addServiceFeaturestore(project, user, dfso);
+        //Note: Order matters here. Training Dataset should be created before the Featurestore
         addServiceDataset(project, user, Settings.ServiceDataset.TRAININGDATASETS, dfso, udfso);
         addServiceDataset(project, user, Settings.ServiceDataset.DATAVALIDATION, dfso, udfso);
+        addServiceFeaturestore(project, user, dfso);
         //Enable Jobs service at the same time as featurestore
         if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.JOBS)) {
           if (!projectServicesFacade.isServiceEnabledForProject(project, ProjectServiceEnum.JUPYTER)) {
@@ -844,8 +845,11 @@ public class ProjectController {
       hiveController.createDatabase(featurestoreName,
           "Featurestore database for project: " + project.getName());
       //Store featurestore metadata in Hopsworks
-      Featurestore featurestore = featurestoreController.createProjectFeatureStore(project, featurestoreName);
-      //Create Hops Dataset of the HiveDb
+      Dataset trainingDatasets = datasetFacade.findByNameAndProjectId(project,
+        project.getName() + "_" + Settings.ServiceDataset.TRAININGDATASETS.getName());
+      Featurestore featurestore = featurestoreController.createProjectFeatureStore(project, featurestoreName,
+        trainingDatasets);
+      //Create Hopsworks Dataset of the HiveDb
       hiveController.createDatasetDb(project, user, dfso, featurestoreName, DatasetType.FEATURESTORE, featurestore);
     } catch (SQLException | IOException ex) {
       LOGGER.log(Level.SEVERE, RESTCodes.FeaturestoreErrorCode.COULD_NOT_CREATE_FEATURESTORE.getMessage(), ex);
