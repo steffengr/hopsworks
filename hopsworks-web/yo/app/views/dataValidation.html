@@ -1,0 +1,101 @@
+<!--
+  ~ This file is part of Hopsworks
+  ~ Copyright (C) 2019, Logical Clocks AB. All rights reserved
+  ~
+  ~ Hopsworks is free software: you can redistribute it and/or modify it under the terms of
+  ~ the GNU Affero General Public License as published by the Free Software Foundation,
+  ~ either version 3 of the License, or (at your option) any later version.
+  ~
+  ~ Hopsworks is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+  ~ without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+  ~ PURPOSE.  See the GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License along with this program.
+  ~ If not, see <https://www.gnu.org/licenses/>.
+  -->
+<div ng-controller="MainCtrl as mainCtrl">
+    <div ng-include="'nav.html'"></div>
+    <div id="wrapper" class="toggled" ng-controller="DataValidationCtrl as dataValidationCtrl">
+        <div class="overlay"></div>
+        <div ng-include="'navProject.html'"></div>
+        <div class="content-wrapper">
+            <!-- Page content-->
+            <div growl reference="1" class="pull-right"></div>
+            <div class="content" style="background-color: white">
+                <div class="col-xs-10 col-sm-10 col-md-10 col-lg-10" layout-align="left left"
+                             style='margin-left: 0px;'>
+                    <div class="row">
+                        <button type="button" ng-click="dataValidationCtrl.toggleNewDataValidationPage()"
+                            class="btn btn-default btn-success control-label" style="margin: 10px">
+                        New data validation project<i style="margin-left: 10px" class="glyphicon glyphicon-plus">
+                    </i>
+                    </button>
+                    </div>
+                    <hr class="col-xs-12 col-sm-12 col-md-12 col-lg-12"/>
+
+                </div>
+
+                <!-- Create new Data validation Project -->
+                <div class="col-xs-10 col-sm-10 col-md-10 col-lg-10" layout-align="left left"
+                             style='margin-left: 0px;' ng-if="dataValidationCtrl.showCreateNewDataValidationPage == true">
+                          
+                    <div class="row">
+                        <button type="button" ng-click="dataValidationCtrl.openConstraintGroupsPage()"
+                            class="btn btn-default btn-success control-label" style="margin: 10px">
+                            Create group<i style="margin-left: 10px" class="glyphicon glyphicon-plus">
+                            </i>
+                        </button>
+                        <button type="button" ng-if="dataValidationCtrl.hasConstraintGroups()"
+                            ng-click="dataValidationCtrl.openPredicatesEditor()"
+                            class="btn btn-default btn-success control-label" style="margin: 10px">
+                            New predicate<i style="margin-left: 10px" class="glyphicon glyphicon-plus">
+                            </i>
+                        </button>
+                        <button type="button" ng-if="dataValidationCtrl.hasConstraintGroups()"
+                                ng-click="dataValidationCtrl.finishPredicates()"
+                                class="btn btn-default btn-info control-label" style="margin: 10px">
+                                Finish<i ng-if="dataValidationCtrl.submittingRules == false"
+                                    style="margin-left: 10px" class="glyphicon glyphicon-ok">
+                                </i>
+                                <i ng-if="dataValidationCtrl.submittingRules"
+                                    style="margin-top: 2px" class="fa fa-spinner fa-spin pull-right"></i>
+                        </button>
+                    </div>
+
+                <div class="row">
+                <div class="container">
+                    <table st-table="dataValidationCtrl.predicates" class="table table-stripped">
+                        <thead>
+                            <tr>
+                                <th class="col-sm-1">Feature</th>
+                                <th class="col-sm-1">Predicate</th>
+                                <th class="col-sm-1">Group</th>
+                                <th class="col-sm-1">Arguments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="predicate in dataValidationCtrl.predicates">
+                                <td>{{ predicate.feature }}</td>
+                                <td>{{ predicate.predicate }}</td>
+                                <td>{{ predicate.constraintGroup.name }} - {{ predicate.constraintGroup.level }}</td>
+                                <td>{{ predicate.arguments }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+
+                </div>
+
+                <div class="col-xs-10 col-sm-10 col-md-10 col-lg-10" layout-align="left left"
+                             style='margin-left: 0px;' ng-if="dataValidationCtrl.showCreateNewDataValidationPage == false">
+                Output the results here
+                </div>
+            </div>
+        <!-- content-wrapper -->
+        </div>
+    <!-- wrapper DataValidationCtrl-->
+    </div>
+
+<!-- outter MainCtrl div-->
+</div>

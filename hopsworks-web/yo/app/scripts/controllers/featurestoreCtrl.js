@@ -21,9 +21,9 @@
 
 angular.module('hopsWorksApp')
     .controller('featurestoreCtrl', ['$scope', '$routeParams', 'growl', 'FeaturestoreService', '$location', '$interval',
-        '$mdSidenav', 'ModalService', 'JobService', 'TourService',
+        '$mdSidenav', 'ModalService', 'JobService', 'TourService', 'StorageService',
         function ($scope, $routeParams, growl, FeaturestoreService, $location, $interval, $mdSidenav, ModalService, JobService,
-                  TourService) {
+                  TourService, StorageService) {
 
 
             /**
@@ -720,6 +720,12 @@ angular.module('hopsWorksApp')
                         self.showFeaturegroups()
                     });
             };
+
+            self.goToDataValidation = function (featureGroup) {
+                StorageService.store("dv_featuregroup",
+                    featureGroup.versionToGroups[featureGroup.activeVersion]);
+                $location.path('project/' + self.projectId + "/featurestore/datavalidation");
+            }
 
             /**
              * Called when a new featurestore is selected in the dropdown list in the UI

@@ -1795,5 +1795,59 @@ angular.module('hopsWorksApp')
                 });
                 return modalInstance.result;
             },
+            addDataValidationPredicate: function (size, features, constraintGroups) {
+                var modalInstance = $uibModal.open({
+                    templateUrl: 'views/addDataValidationPredicate.html',
+                    controller: 'DataValidationModalsCtrl as dataValidationModalsCtrl',
+                    size: size,
+                    resolve: {
+                        auth: ['$q', '$location', 'AuthService',
+                            function ($q, $location, AuthService) {
+                                return AuthService.session().then(
+                                    function (success) {
+                                    },
+                                    function (err) {
+                                        $location.path('/login');
+                                        $location.replace();
+                                        return $q.reject(err);
+                                    });
+                            }],
+                            features: function() {
+                                return features;
+                            },
+                            constraintGroups: function() {
+                                return constraintGroups;
+                            }
+                    }
+                });
+                return modalInstance.result;
+            },
+            createConstraintGroup: function (size) {
+                var modalInstance = $uibModal.open({
+                    templateUrl: 'views/createDataValidationGroup.html',
+                    controller: 'DataValidationModalsCtrl as dataValidationModalsCtrl',
+                    size: size,
+                    resolve: {
+                        auth: ['$q', '$location', 'AuthService',
+                            function ($q, $location, AuthService) {
+                                return AuthService.session().then(
+                                    function (success) {
+                                    },
+                                    function (err) {
+                                        $location.path('/login');
+                                        $location.replace();
+                                        return $q.reject(err);
+                                    });
+                            }],
+                            features: function() {
+                                return {};
+                            },
+                            constraintGroups: function() {
+                                return [];
+                            }
+                    }
+                });
+                return modalInstance.result;
+            }
         };
     }]);

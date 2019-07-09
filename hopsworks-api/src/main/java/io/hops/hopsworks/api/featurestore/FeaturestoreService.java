@@ -113,6 +113,8 @@ public class FeaturestoreService {
   private JWTHelper jWTHelper;
   @EJB
   private ProjectTeamFacade projectTeamFacade;
+  @EJB
+  private DataValidationResource dataValidationService;
 
   private Project project;
 
@@ -943,6 +945,11 @@ public class FeaturestoreService {
     return noCacheResponse.getNoCacheResponseBuilder(Response.Status.OK)
       .entity(featurestoreMetadataGeneric)
       .build();
+  }
+  
+  @Path("{featureStoreId}/datavalidation")
+  public DataValidationResource dataValidation(@PathParam("featureStoreId") Integer featureStoreId) {
+    return this.dataValidationService.setFeatureStore(featureStoreId);
   }
   
   /**

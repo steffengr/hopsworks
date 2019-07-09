@@ -39,6 +39,7 @@
 package io.hops.hopsworks.common.util;
 
 import com.google.common.base.Splitter;
+import io.hops.hopsworks.common.dao.featurestore.datavalidation.DataValidationController;
 import io.hops.hopsworks.common.dao.project.Project;
 import io.hops.hopsworks.common.dao.user.UserFacade;
 import io.hops.hopsworks.common.dao.user.Users;
@@ -2009,7 +2010,9 @@ public class Settings implements Serializable {
     JUPYTER("Jupyter", "Contains Jupyter notebooks."),
     SERVING("Models", "Contains models to be used for serving."),
     EXPERIMENTS("Experiments", "Contains experiments from using the hops python api"),
-    TRAININGDATASETS("Training_Datasets", "Contains curated training datasets created from the feature store");
+    TRAININGDATASETS("Training_Datasets", "Contains curated training datasets created from the feature store"),
+    DATAVALIDATION(DataValidationController.DATA_VALIDATION_DATASET,
+        "Contains rules and results for Features validation");
 
     private final String name;
     private final String description;

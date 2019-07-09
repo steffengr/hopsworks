@@ -1,0 +1,63 @@
+<!--
+  ~ This file is part of Hopsworks
+  ~ Copyright (C) 2019, Logical Clocks AB. All rights reserved
+  ~
+  ~ Hopsworks is free software: you can redistribute it and/or modify it under the terms of
+  ~ the GNU Affero General Public License as published by the Free Software Foundation,
+  ~ either version 3 of the License, or (at your option) any later version.
+  ~
+  ~ Hopsworks is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+  ~ without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+  ~ PURPOSE.  See the GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License along with this program.
+  ~ If not, see <https://www.gnu.org/licenses/>.
+  -->
+<div class="modal-header">
+    <button class="close" ng-click="dataValidationModalsCtrl.close()" data-dismiss="modal" aria-hidden="true"
+        type="button">&times;
+    </button>
+    <h2 class="modal-title">Create constraint group</h2>
+</div>
+<div class="modal-body">
+    <!-- Group name -->
+    <div class="row">
+        <div class="text-right col-md-4">Name<i class="fa fa-info-circle" uib-tooltip="Constraint group name"
+                style="margin-left: 10px"></i>
+        </div>
+        <div class="col-md-2">
+            <div>
+                <input type="text" ng-model="dataValidationModalsCtrl.constraintGroup.name">
+            </div>
+        </div>
+    </div>
+
+    <!-- Group description -->
+    <div class="row">
+        <div class="text-right col-md-4">Description<i class="fa fa-info-circle"
+                uib-tooltip="Constraint group description" style="margin-left: 10px"></i>
+        </div>
+        <div class="col-md-2">
+            <div>
+                <input type="text" ng-model="dataValidationModalsCtrl.constraintGroup.description">
+            </div>
+        </div>
+    </div>
+
+    <!-- Group level -->
+    <div class="row">
+        <div class="text-right col-md-4">Level<i class="fa fa-info-circle" uib-tooltip="Constraint group level"
+                style="margin-left: 10px"></i>
+        </div>
+        <div class="col-md-2">
+            <select ng-model="dataValidationModalsCtrl.constraintGroup.level"
+                ng-options="l for l in dataValidationModalsCtrl.constraintGroupLevels">
+            </select>
+        </div>
+    </div>
+</div>
+<div class="modal-footer">
+    <button type="button" ng-click="dataValidationModalsCtrl.addNewGroup()" class="btn btn-primary">Save</button>
+    <button ng-click="dataValidationModalsCtrl.close()" type="button" class="btn btn-secondary"
+        data-dismiss="modal">Close</button>
+</div
