@@ -1332,7 +1332,15 @@ public class RESTCodes {
     ILLEGAL_TRAINING_DATASET_NAME(53, "Illegal training dataset name", Response.Status.BAD_REQUEST),
     S3_CONNECTOR_ID_NOT_PROVIDED(54, "S3 Connector Id was not provided", Response.Status.BAD_REQUEST),
     HOPSFS_CONNECTOR_ID_NOT_PROVIDED(55, "HopsFS Connector Id was not provided", Response.Status.BAD_REQUEST),
-    COULD_NOT_CREATE_DATA_VALIDATION_RULES(56, "Failed to create data validation rules",
+    ILLEGAL_TRAINING_DATASET_DESCRIPTION(56, "Illegal training dataset description",
+      Response.Status.BAD_REQUEST),
+    ILLEGAL_TRAINING_DATASET_DATA_FORMAT(57, "Illegal training dataset data format",
+      Response.Status.BAD_REQUEST),
+    ILLEGAL_TRAINING_DATASET_VERSION(58, "Illegal training dataset version",
+      Response.Status.BAD_REQUEST),
+    ILLEGAL_FEATUREGROUP_VERSION(59, "Illegal feature group version",
+	Response.Status.BAD_REQUEST),
+    COULD_NOT_CREATE_DATA_VALIDATION_RULES(60, "Failed to create data validation rules",
         Response.Status.INTERNAL_SERVER_ERROR);
     private int code;
     private String message;
