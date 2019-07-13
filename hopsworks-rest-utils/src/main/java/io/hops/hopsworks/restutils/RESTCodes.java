@@ -1339,8 +1339,14 @@ public class RESTCodes {
     ILLEGAL_TRAINING_DATASET_VERSION(58, "Illegal training dataset version",
       Response.Status.BAD_REQUEST),
     ILLEGAL_FEATUREGROUP_VERSION(59, "Illegal feature group version",
+      Response.Status.BAD_REQUEST),
+    ILLEGAL_STORAGE_CONNECTOR_TYPE(60, "The provided storage connector type was not recognized",
+        Response.Status.BAD_REQUEST),
+    FEATURESTORE_INITIALIZATION_ERROR(61, "Featurestore Initialization Error", Response.Status.INTERNAL_SERVER_ERROR),
+    FEATURESTORE_UTIL_ARGS_FAILURE(62, "Could not write featurestore util args to HDFS",
+	Response.Status.INTERNAL_SERVER_ERROR),
 	Response.Status.BAD_REQUEST),
-    COULD_NOT_CREATE_DATA_VALIDATION_RULES(60, "Failed to create data validation rules",
+    COULD_NOT_CREATE_DATA_VALIDATION_RULES(63, "Failed to create data validation rules",
         Response.Status.INTERNAL_SERVER_ERROR);
     private int code;
     private String message;
