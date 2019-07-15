@@ -116,15 +116,17 @@ angular.module('hopsWorksApp')
                       $location.path('project/' + self.projectId + "/jobs");
                     }, function (error) {
                       self.submittingRules = false;
-                      var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
-                      growl.error(self.errorMsg, {title: error.data.errorMsg, ttl: 5000, referenceId: 1});
+                      console.log(error)
+                      //var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
+                      //growl.error(self.errorMsg, {title: error.data.errorMsg, ttl: 5000, referenceId: 1});
                       self.toggleNewDataValidationPage();
                     }
                   )
                 }, function (error) {
                   self.submittingRules = false;
-                  var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
-                  growl.error(self.errorMsg, {title: error.data.errorMsg, ttl: 5000, referenceId: 1});
+                  console.log(error)
+                  //var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
+                  //growl.error(self.errorMsg, {title: error.data.errorMsg, ttl: 5000, referenceId: 1});
                   self.toggleNewDataValidationPage();
                 })
             }
