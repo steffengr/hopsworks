@@ -253,10 +253,12 @@ public class FeaturestoreService {
         .entity(featurestoreMetadataGeneric)
         .build();
   }
+  
+  
   @Path("{featureStoreId}/datavalidation")
   public DataValidationResource dataValidation(@PathParam("featureStoreId") Integer featureStoreId) {
     return this.dataValidationService.setFeatureStore(featureStoreId);
-   }
+  }
 
   /**
    * Feature Groups sub-resource

@@ -1344,8 +1344,7 @@ public class RESTCodes {
         Response.Status.BAD_REQUEST),
     FEATURESTORE_INITIALIZATION_ERROR(61, "Featurestore Initialization Error", Response.Status.INTERNAL_SERVER_ERROR),
     FEATURESTORE_UTIL_ARGS_FAILURE(62, "Could not write featurestore util args to HDFS",
-	Response.Status.INTERNAL_SERVER_ERROR),
-	Response.Status.BAD_REQUEST),
+      Response.Status.INTERNAL_SERVER_ERROR),
     COULD_NOT_CREATE_DATA_VALIDATION_RULES(63, "Failed to create data validation rules",
         Response.Status.INTERNAL_SERVER_ERROR);
     private int code;
