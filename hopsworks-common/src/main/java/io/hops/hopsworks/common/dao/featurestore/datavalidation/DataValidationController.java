@@ -30,15 +30,18 @@ import io.hops.hopsworks.common.hdfs.HdfsUsersController;
 import io.hops.hopsworks.common.util.Settings;
 import io.hops.hopsworks.exceptions.FeaturestoreException;
 import io.hops.hopsworks.restutils.RESTCodes;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.GlobFilter;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
 
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -76,12 +79,11 @@ public class DataValidationController {
       List<ConstraintGroup> constraintGroups) throws FeaturestoreException {
     String jsonRules = convert2deequRules(constraintGroups);
     Path rulesPath = getDataValidationRulesFilePath(project, featureGroup.getName(), featureGroup.getVersion());
-    LOGGER.log(Level.SEVERE, ">> Writing to " + rulesPath.toString() + " Rules: " + jsonRules);
     writeToHDFS(project, user, rulesPath, jsonRules);
     return String.format(HDFS_FILE_PATH, rulesPath.toString());
   }
   
-  public List<String> readRulesForFeatureGroup(Users user, Project project, FeaturegroupDTO featureGroup)
+  public List<ConstraintGroup> readRulesForFeatureGroup(Users user, Project project, FeaturegroupDTO featureGroup)
     throws FeaturestoreException {
     String hdfsUsername = hdfsUsersController.getHdfsUserName(project, user);
     DistributedFileSystemOps udfso = null;
@@ -94,13 +96,20 @@ public class DataValidationController {
       if (rules == null || rules.length == 0) {
         return Collections.EMPTY_LIST;
       }
-      List<String> result = new ArrayList<>(rules.length);
+      List<ConstraintGroup> constraintGroups = new ArrayList<>();
       for (int i = 0; i < rules.length; i++) {
         FileStatus fileStatus = rules[i];
         Path path2rule = fileStatus.getPath();
-        result.add(path2rule.toString());
+        try (FSDataInputStream inStream = udfso.open(path2rule)) {
+          ByteArrayOutputStream out = new ByteArrayOutputStream();
+          IOUtils.copyBytes(inStream, out, 512);
+          String content = out.toString("UTF-8");
+          List<ConstraintGroup> groups = convertFromDeequRules(content);
+          constraintGroups.addAll(groups);
+          out.close();
+        }
       }
-      return result;
+      return constraintGroups;
     } catch (IOException ex) {
       throw new FeaturestoreException(RESTCodes.FeaturestoreErrorCode.COULD_NOT_CREATE_DATA_VALIDATION_RULES,
           Level.WARNING, "Failed to read validation rules",
@@ -149,5 +158,20 @@ public class DataValidationController {
     }
     json.add("constraintGroups", constraintGroupsJSON);
     return constraintGroupSerializer.toJson(json);
+  }
+  
+  private List<ConstraintGroup> convertFromDeequRules(String rules) {
+    Gson constraintGroupsDeserializer = new GsonBuilder()
+        .registerTypeAdapter(ConstraintGroup.class, new ConstraintGroupDeserializer())
+        .create();
+    JsonElement topLevelObject = constraintGroupsDeserializer.fromJson(rules, JsonElement.class);
+    JsonArray constraintGroupsJSON = topLevelObject.getAsJsonObject()
+        .getAsJsonArray("constraintGroups");
+    List<ConstraintGroup> constraintGroups = new ArrayList<>(constraintGroupsJSON.size());
+    constraintGroupsJSON.forEach(cgj -> {
+      ConstraintGroup cg = constraintGroupsDeserializer.fromJson(cgj, ConstraintGroup.class);
+      constraintGroups.add(cg);
+    });
+    return constraintGroups;
   }
 }

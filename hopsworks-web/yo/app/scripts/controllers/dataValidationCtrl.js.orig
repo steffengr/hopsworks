@@ -116,15 +116,27 @@ angular.module('hopsWorksApp')
                       $location.path('project/' + self.projectId + "/jobs");
                     }, function (error) {
                       self.submittingRules = false;
+<<<<<<< HEAD
+                      console.log(error)
+                      //var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
+                      //growl.error(self.errorMsg, {title: error.data.errorMsg, ttl: 5000, referenceId: 1});
+=======
                       var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
                       growl.error(errorMsg, {title: 'Could not create data validation project', ttl: 5000, referenceId: 1});
+>>>>>>> e9e7be73e... [data_validation] Marshall validation rules and send them to client
                       self.toggleNewDataValidationPage();
                     }
                   )
                 }, function (error) {
                   self.submittingRules = false;
+<<<<<<< HEAD
+                  console.log(error)
+                  //var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
+                  //growl.error(self.errorMsg, {title: error.data.errorMsg, ttl: 5000, referenceId: 1});
+=======
                   var errorMsg = (typeof error.data.usrMsg !== 'undefined')? error.data.usrMsg : "";
                   growl.error(errorMsg, {title: 'Could not create data validation project', ttl: 5000, referenceId: 1});
+>>>>>>> e9e7be73e... [data_validation] Marshall validation rules and send them to client
                   self.toggleNewDataValidationPage();
                 })
             }

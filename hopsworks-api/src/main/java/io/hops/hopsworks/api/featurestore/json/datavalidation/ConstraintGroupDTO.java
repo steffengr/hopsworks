@@ -85,4 +85,20 @@ public class ConstraintGroupDTO extends RestDTO<ConstraintGroupDTO> {
     }
     return constraintGroups;
   }
+  
+  public static ConstraintGroupDTO fromConstraintGroups(List<ConstraintGroup> constraintGroups) {
+    ConstraintGroupDTO outterConstraintGroupDTO = new ConstraintGroupDTO();
+    constraintGroups.forEach(cg -> {
+      ConstraintGroupDTO cgdto = new ConstraintGroupDTO();
+      cgdto.setName(cg.getName());
+      cgdto.setDescription(cg.getDescription());
+      cgdto.setLevel(cg.getLevel());
+      
+      ConstraintDTO outterConstraintDTO = new ConstraintDTO();
+      cg.getConstraints().forEach(c -> outterConstraintDTO.addItem(ConstraintDTO.fromConstraint(c)));
+      cgdto.setConstraints(outterConstraintDTO);
+      outterConstraintGroupDTO.addItem(cgdto);
+    });
+    return outterConstraintGroupDTO;
+  }
 }

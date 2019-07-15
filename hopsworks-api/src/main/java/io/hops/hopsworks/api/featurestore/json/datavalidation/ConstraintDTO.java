@@ -90,4 +90,14 @@ public class ConstraintDTO extends RestDTO<ConstraintDTO> {
     }
     return constraints;
   }
+  
+  public static ConstraintDTO fromConstraint(Constraint constraint) {
+    ConstraintDTO cdto = new ConstraintDTO();
+    cdto.setName(constraint.getName());
+    cdto.setHint(constraint.getHint());
+    cdto.setMin(constraint.getMin());
+    cdto.setMax(constraint.getMax());
+    cdto.setColumns(constraint.getColumns());
+    return cdto;
+  }
 }
