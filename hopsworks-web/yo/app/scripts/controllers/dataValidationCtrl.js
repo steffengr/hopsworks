@@ -40,6 +40,23 @@ angular.module('hopsWorksApp')
               this.level = level;
             }
 
+            ConstraintGroup.prototype.checkInput = function () {
+              if (this.isUndefined(this.name) || this.name.length == 0) {
+                return 1;
+              }
+              if (this.isUndefined(this.description) || this.description.length == 0) {
+                return 2;
+              }
+              if (this.isUndefined(this.level) || this.level.length == 0) {
+                return 3;
+              }
+              return -1;
+          }
+
+          ConstraintGroup.prototype.isUndefined = function (input) {
+            return typeof input === "undefined";
+          }
+
             self.init = function () {
               self.constraintGroups = new Map();
               self.featureGroup = StorageService.recover("dv_featuregroup");
@@ -85,7 +102,14 @@ angular.module('hopsWorksApp')
             self.toggleNewDataValidationPage = function () {
               self.predicates = [];
               self.constraintGroups = new Map();
-              self.showCreateNewDataValidationPage = !self.showCreateNewDataValidationPage;
+              if (!self.showCreateNewDataValidationPage) {
+                self.predicates = [];
+                self.constraintGroups = new Map();
+                self.showCreateNewDataValidationPage = true;
+              } else {
+                self.fetchValidationRules();
+                self.showCreateNewDataValidationPage = false;
+              }
             }
 
             self.hasConstraintGroups = function () {
@@ -120,7 +144,11 @@ angular.module('hopsWorksApp')
                 function (group) {
                   if (group) {
                     var newGroup = new ConstraintGroup(group.name, group.description, group.level);
-                    thisthis.constraintGroups.set(newGroup, []);
+                    if (newGroup.checkInput() > 0) {
+                      growl.error("Group missing required arguments", {title: "Did not create constraint group", ttl: 2000, referenceId: 1});
+                    } else {
+                      thisthis.constraintGroups.set(newGroup, []);
+                    }
                   } else {
                     growl.error("Constraint group is empty", {title: "Failed creating constraint group", ttl: 2000, referenceId: 1});
                   }
@@ -185,10 +213,10 @@ angular.module('hopsWorksApp')
                       name: value[i].predicate,
                       hint: value[i].arguments.hint
                     }
-                    if (value[i].arguments.min) {
+                    if (!self.isUndefined(value[i].arguments.min)) {
                       constraint.min = value[i].arguments.min;
                     }
-                    if (value[i].arguments.max) {
+                    if (!self.isUndefined(value[i].arguments.max)) {
                       constraint.max = value[i].arguments.max;
                     }
                     constraint.columns = value[i].feature;
@@ -203,6 +231,10 @@ angular.module('hopsWorksApp')
                 constraintGroups: constraintGroups
               }
               return container;
+            }
+
+            self.isUndefined = function (input) {
+              return typeof input === "undefined";
             }
 
             self.convertRules2DTO = function(rules) {
@@ -226,10 +258,10 @@ angular.module('hopsWorksApp')
                   constraintDTO.name = constraints[j].name;
                   constraintDTO.hint = constraints[j].hint;
                   constraintDTO.columns = constraints[j].columns;
-                  if (constraints[j].min) {
+                  if (!self.isUndefined(constraints[j].min)) {
                     constraintDTO.min = constraints[j].min;
                   }
-                  if (constraints[j].max) {
+                  if (!self.isUndefined(constraints[j].max)) {
                     constraintDTO.max = constraints[j].max;
                   }
                   constraintsDTO.push(constraintDTO);
@@ -261,10 +293,10 @@ angular.module('hopsWorksApp')
                   constraint.feature = constraintJ.columns;
                   constraint.constraintGroup = constraintGroup;
                   constraint.arguments = "";
-                  if (constraintJ.min) {
+                  if (!self.isUndefined(constraintJ.min)) {
                     constraint.arguments += "min: " + constraintJ.min;
                   }
-                  if (constraintJ.max) {
+                  if (!self.isUndefined(constraintJ.max)) {
                     constraint.arguments += " max: " + constraintJ.max;
                   }
                   self.predicates.push(constraint);

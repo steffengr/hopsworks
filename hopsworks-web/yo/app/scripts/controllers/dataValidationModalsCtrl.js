@@ -32,8 +32,8 @@ angular.module('hopsWorksApp')
             self.predicateType = {
                 BOUNDARY: 0
             }
-
-            var Predicate = function(name, predicateType, columnsSelectionMode) {
+            
+            var Predicate = function(name, predicateType, columnsSelectionMode, validationFunction) {
                 this.name = name;
                 this.predicateType = predicateType;
                 this.constraintGroup = {};
@@ -72,6 +72,34 @@ angular.module('hopsWorksApp')
                 }
                 return predicate;
             };
+
+            Predicate.prototype.checkInput = function () {
+                if (this.isUndefined(this.min) || this.isUndefined(this.max)) {
+                    return 1;
+                }
+                if (this.isUndefined(this.hint) || this.hint.length == 0) {
+                    return 2;
+                }
+
+                if (this.columnsSelectionMode == self.columnsModes.MULTI_COLUMNS) {
+                    if (this.isUndefined(this.features) || this.features.length == 0) {
+                        return 3;
+                    }
+                }
+                if (this.columnsSelectionMode == self.columnsModes.SINGLE_COLUMN) {
+                    if (this.isUndefined(this.feature)) {
+                        return 3;
+                    }
+                }
+                if (this.isUndefined(this.constraintGroup)) {
+                    return 4;
+                }
+                return -1;
+            }
+
+            Predicate.prototype.isUndefined = function (input) {
+                return typeof input === "undefined";
+            }
 
             /*
             ** Deequ rules
@@ -122,18 +150,23 @@ angular.module('hopsWorksApp')
 
             self.addNewPredicate = function () {
                 if (self.selected_predicate) {
-                    var predicate = self.selected_predicate.constructPredicate();
-                    growl.info('Added new predicate ' + predicate.predicate,
-                      {title: 'Added predicate', ttl: 2000, referenceId: 1})
-                    $uibModalInstance.close(predicate);
+                    var check = self.selected_predicate.checkInput();
+                    if (check > 0) {
+                        growl.error('Missing required arguments',
+                            {title: 'Failed to add predicate', ttl: 2000, referenceId: 1});
+                        $uibModalInstance.dismiss('cancel');
+                    } else {
+                        var predicate = self.selected_predicate.constructPredicate();
+                        growl.info('Added new predicate ' + predicate.predicate,
+                            {title: 'Added predicate', ttl: 2000, referenceId: 1})
+                        $uibModalInstance.close(predicate);
+                    }
                 } else {
                     $uibModalInstance.dismiss('cancel');
                 }
-                
             }
 
             self.addNewGroup = function () {
-                console.log("Creating new data validation group");            
                 $uibModalInstance.close(self.constraintGroup);
             }
 
