@@ -29,6 +29,14 @@ angular.module('hopsWorksApp')
                         data: rules
                     };
                     return $http(request);
+                },
+                getRules: function (projectId, featureStoreId, featureGroupId) {
+                    return $http.get('/api/project/' + projectId + '/featurestores/'
+                        + featureStoreId + '/datavalidation/' + featureGroupId + '/rules');
+                },
+                getResult: function (projectId, featureStoreId, featureGroupId) {
+                    return $http.get('/api/project/' + projectId + '/featurestores/'
+                        + featureStoreId + '/datavalidation/' + featureGroupId + '/result');
                 }
             }
         }])

@@ -30,6 +30,10 @@ angular.module('hopsWorksApp')
             self.predicates = [];
             self.submittingRules = false;
 
+            self.showValidationResult = false;
+            self.validationResult = {};
+            self.validationWorking = false;
+
             var ConstraintGroup = function(name, description, level) {
               this.name = name;
               this.description = description;
@@ -39,11 +43,48 @@ angular.module('hopsWorksApp')
             self.init = function () {
               self.constraintGroups = new Map();
               self.featureGroup = StorageService.recover("dv_featuregroup");
+              self.fetchValidationRules();
             }
 
-            self.init();
+            self.fetchValidationRules = function() {
+              self.validationWorking = true;
+              DataValidationService.getRules(self.projectId, self.featureGroup.featurestoreId,
+                self.featureGroup.id).then(
+                  function (success) {
+                    self.predicates = [];
+                    self.convertDTO2Rules(success.data);
+                    self.showValidationResult = false;
+                    self.validationResult = {};
+                    self.validationWorking = false;
+                  }, function (error) {
+                    self.validationWorking = false;
+                    growl.error(error, {title: "Could not fetch validation rules", ttl: 2000, referenceId: 1});
+                  }
+                )
+            }
+
+            self.fetchValidationResult = function() {
+              self.validationWorking = true;
+              DataValidationService.getResult(self.projectId, self.featureGroup.featurestoreId,
+                self.featureGroup.id).then(
+                  function (success) {
+                    self.validationResult.status = success.data.status.toUpperCase();
+                    if (self.validationResult.status !== 'EMPTY') {
+                      self.validationResult.constraintsResult = success.data.constraintsResult;
+                    }
+                    self.validationWorking = false;
+                    self.showValidationResult = true;
+                  }, function (error) {
+                    growl.error(error, {title: "Could not fetch validation result", ttl: 2000, referenceId: 1});
+                    self.validationWorking = false;
+                    self.showValidationResult = false;
+                  }
+                )
+            }
 
             self.toggleNewDataValidationPage = function () {
+              self.predicates = [];
+              self.constraintGroups = new Map();
               self.showCreateNewDataValidationPage = !self.showCreateNewDataValidationPage;
             }
 
@@ -200,6 +241,37 @@ angular.module('hopsWorksApp')
               return groupsContainer;
             }
 
+            /*
+             * Used to convert existing rules to flat predicates and print them
+            */
+            self.convertDTO2Rules = function (dto) {
+              var constraintGroups = dto.items;
+              if (!constraintGroups) {
+                return;
+              }
+              for (var i = 0; i < constraintGroups.length; i++) {
+                var constraintGroupJ = constraintGroups[i];
+                var constraintGroup = new ConstraintGroup(constraintGroupJ.name, constraintGroupJ.description,
+                  constraintGroupJ.level);
+                var constraintsJ = constraintGroupJ.constraints.items;
+                for (var j = 0; j < constraintsJ.length; j++) {
+                  var constraintJ = constraintsJ[j];
+                  var constraint = {};
+                  constraint.predicate = constraintJ.name;
+                  constraint.feature = constraintJ.columns;
+                  constraint.constraintGroup = constraintGroup;
+                  constraint.arguments = "";
+                  if (constraintJ.min) {
+                    constraint.arguments += "min: " + constraintJ.min;
+                  }
+                  if (constraintJ.max) {
+                    constraint.arguments += " max: " + constraintJ.max;
+                  }
+                  self.predicates.push(constraint);
+                }
+              }
+            }
+
             self.createJobConfiguration = function (dataValidationSettings) {
               var jobName = self.JOB_PREFIX + self.featureGroup.name + "-v"
                 + self.featureGroup.version +"_"+ Math.round(new Date().getTime() / 1000);
@@ -230,5 +302,7 @@ angular.module('hopsWorksApp')
 
               return jobConfig;
             }
+
+            self.init();
         }
     ]);

@@ -16,6 +16,7 @@
 
 package io.hops.hopsworks.common.dao.featurestore.datavalidation;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -57,12 +58,11 @@ public class DataValidationController {
   private static final String PATH_TO_DATA_VALIDATION = Path.SEPARATOR + Settings.DIR_ROOT + Path.SEPARATOR
       + "%s" + Path.SEPARATOR + DATA_VALIDATION_DATASET;
   
-  private static final String PATH_TO_DATA_VALIDATION_RESULTS = Path.SEPARATOR + Settings.DIR_ROOT + Path.SEPARATOR
-      + "%s" + Path.SEPARATOR + DATA_VALIDATION_DATASET + Path.SEPARATOR + "%s" + Path.SEPARATOR + "%d";
-  
+  private static final String PATH_TO_DATA_VALIDATION_RESULT = PATH_TO_DATA_VALIDATION + Path.SEPARATOR + "%s"
+      + Path.SEPARATOR + "%d";
   private static final String PATH_TO_DATA_VALIDATION_RULES = PATH_TO_DATA_VALIDATION + Path.SEPARATOR + "rules";
   private static final String PATH_TO_DATA_VALIDATION_RULES_FILE = PATH_TO_DATA_VALIDATION_RULES + Path.SEPARATOR
-      + "%s_%d-rules.json";
+      + "%s_%d-%d-rules.json";
   private static final String HDFS_FILE_PATH = "hdfs://%s";
   
   @EJB
@@ -78,9 +78,23 @@ public class DataValidationController {
   public String writeRulesToFile(Users user, Project project, FeaturegroupDTO featureGroup,
       List<ConstraintGroup> constraintGroups) throws FeaturestoreException {
     String jsonRules = convert2deequRules(constraintGroups);
-    Path rulesPath = getDataValidationRulesFilePath(project, featureGroup.getName(), featureGroup.getVersion());
-    writeToHDFS(project, user, rulesPath, jsonRules);
-    return String.format(HDFS_FILE_PATH, rulesPath.toString());
+    DistributedFileSystemOps udfso = null;
+    try {
+      String hdfsUsername = hdfsUsersController.getHdfsUserName(project, user);
+      udfso = distributedFsService.getDfsOps(hdfsUsername);
+      Path rulesPath = getDataValidationRulesFilePath(project, featureGroup.getName(), featureGroup.getVersion(),
+          udfso);
+      writeToHDFS(rulesPath, jsonRules, udfso);
+      return String.format(HDFS_FILE_PATH, rulesPath.toString());
+    } catch (IOException ex) {
+      throw new FeaturestoreException(RESTCodes.FeaturestoreErrorCode.COULD_NOT_CREATE_DATA_VALIDATION_RULES,
+          Level.WARNING, "Failed to create data validation rules",
+          "Could not write data validation rules to HDFS", ex);
+    } finally {
+      if (udfso != null) {
+        distributedFsService.closeDfsClient(udfso);
+      }
+    }
   }
   
   public List<ConstraintGroup> readRulesForFeatureGroup(Users user, Project project, FeaturegroupDTO featureGroup)
@@ -113,7 +127,7 @@ public class DataValidationController {
     } catch (IOException ex) {
       throw new FeaturestoreException(RESTCodes.FeaturestoreErrorCode.COULD_NOT_CREATE_DATA_VALIDATION_RULES,
           Level.WARNING, "Failed to read validation rules",
-          "Could not read validation rules from HDFS", ex);
+          "Could not read validation rules from HDFS for Feature group " + featureGroup.getName(), ex);
     } finally {
       if (udfso != null) {
         distributedFsService.closeDfsClient(udfso);
@@ -121,19 +135,43 @@ public class DataValidationController {
     }
   }
   
-  private void writeToHDFS(Project project, Users user, Path path2file, String content) throws FeaturestoreException {
+  public ValidationResult getValidationResultForFeatureGroup(Users user, Project project, FeaturegroupDTO featureGroup)
+    throws FeaturestoreException {
     String hdfsUsername = hdfsUsersController.getHdfsUserName(project, user);
     DistributedFileSystemOps udfso = null;
     try {
+      Path path2result = new Path(String.format(PATH_TO_DATA_VALIDATION_RESULT, project.getName(),
+          featureGroup.getName(), featureGroup.getVersion()) + Path.SEPARATOR + "*");
       udfso = distributedFsService.getDfsOps(hdfsUsername);
-      try (FSDataOutputStream outStream = udfso.create(path2file)) {
-        outStream.writeBytes(content);
-        outStream.hflush();
-      } catch (IOException ex) {
-        throw new FeaturestoreException(RESTCodes.FeaturestoreErrorCode.COULD_NOT_CREATE_DATA_VALIDATION_RULES,
-            Level.WARNING, "Failed to create data validation rules",
-            "Could not write data validation rules to HDFS", ex);
+      GlobFilter filter = new GlobFilter("*.json");
+      FileStatus[] resultFiles = udfso.getFilesystem().globStatus(path2result, filter);
+      if (resultFiles == null || resultFiles.length == 0) {
+        return new ValidationResult(ValidationResult.Status.Empty, Collections.EMPTY_LIST);
       }
+      List<ConstraintResult> constraintResults = new ArrayList<>();
+      Gson gson = new GsonBuilder()
+          .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+          .create();
+      for (FileStatus fileStatus : resultFiles) {
+        Path resultFile = fileStatus.getPath();
+        try (FSDataInputStream inStream = udfso.open(resultFile)) {
+          ByteArrayOutputStream out = new ByteArrayOutputStream();
+          IOUtils.copyBytes(inStream, out, 512);
+          String[] constraintResultsJson = out.toString("UTF-8").split("\n");
+          for (String cr : constraintResultsJson) {
+            ConstraintResult constraintResult = gson.fromJson(cr, ConstraintResult.class);
+            constraintResults.add(constraintResult);
+          }
+        }
+      }
+      ValidationResult validationResult = new ValidationResult();
+      validationResult.setConstraintsResult(constraintResults);
+      assignValidationResultStatus(validationResult);
+      return validationResult;
+    } catch (IOException ex) {
+      throw new FeaturestoreException(RESTCodes.FeaturestoreErrorCode.COULD_NOT_READ_DATA_VALIDATION_RESULT,
+          Level.WARNING, "Failed to read validation result",
+          "Failed to read validation result from HDFS for Feature group " + featureGroup.getName(), ex);
     } finally {
       if (udfso != null) {
         distributedFsService.closeDfsClient(udfso);
@@ -141,9 +179,76 @@ public class DataValidationController {
     }
   }
   
-  private Path getDataValidationRulesFilePath(Project project, String featureGroupName, Integer featureGroupVersion) {
+  /**
+   * If there are no Warnings or Errors then total status is Success.
+   *
+   * If there are only constraints with severity level Warning, then if
+   * (a) there are no errors but at least one Warning, status is Warning
+   * (b) there is at least one error, status is Error
+   *
+   * If there is at least one constraint with severity level Error, then if
+   * there is any Warning or Error, final status is Error
+   * @param validationResult
+   */
+  private void assignValidationResultStatus(final ValidationResult validationResult) {
+    int success = 0, warning = 0, error = 0;
+    ConstraintGroupLevel level = ConstraintGroupLevel.Warning;
+    for (ConstraintResult cr : validationResult.getConstraintsResult()) {
+      if (cr.getCheckLevel().equals(ConstraintGroupLevel.Error)) {
+        level = ConstraintGroupLevel.Error;
+      }
+      switch (cr.getConstraintStatus()) {
+        case Success:
+          success++;
+          break;
+        case Warning:
+          warning++;
+          break;
+        case Failure:
+          error++;
+          break;
+        default:
+      }
+    }
+    if (success != 0 && warning == 0 && error == 0) {
+      validationResult.setStatus(ValidationResult.Status.Success);
+      return;
+    }
+    if (level.equals(ConstraintGroupLevel.Warning)) {
+      if (warning > 0 && error == 0) {
+        validationResult.setStatus(ValidationResult.Status.Warning);
+        return;
+      }
+      if (warning >= 0 && error > 0) {
+        validationResult.setStatus(ValidationResult.Status.Failure);
+        return;
+      }
+    }
+    if (level.equals(ConstraintGroupLevel.Error)) {
+      validationResult.setStatus(ValidationResult.Status.Failure);
+    }
+  }
+  
+  private void writeToHDFS(Path path2file, String content, DistributedFileSystemOps udfso) throws IOException {
+    try (FSDataOutputStream outStream = udfso.create(path2file)) {
+      outStream.writeBytes(content);
+      outStream.hflush();
+    }
+  }
+  
+  private Path getDataValidationRulesFilePath(Project project, String featureGroupName, Integer featureGroupVersion,
+      DistributedFileSystemOps udfso)
+    throws IOException {
+    Path path2rulesDir = new Path(String.format(PATH_TO_DATA_VALIDATION_RULES, project.getName()
+      + Path.SEPARATOR + "*"));
+    GlobFilter filter = new GlobFilter(featureGroupName + "_*-rules.json");
+    FileStatus[] rules = udfso.getFilesystem().globStatus(path2rulesDir, filter);
+    int fileVersion = 1;
+    if (rules != null) {
+      fileVersion = rules.length + 1;
+    }
     return new Path(String.format(PATH_TO_DATA_VALIDATION_RULES_FILE, project.getName(), featureGroupName,
-        featureGroupVersion));
+        featureGroupVersion, fileVersion));
   }
   
   private String convert2deequRules(List<ConstraintGroup> constraintGroups) {

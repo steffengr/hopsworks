@@ -25,6 +25,7 @@ import io.hops.hopsworks.common.dao.featurestore.Featurestore;
 import io.hops.hopsworks.common.dao.featurestore.FeaturestoreFacade;
 import io.hops.hopsworks.common.dao.featurestore.datavalidation.ConstraintGroup;
 import io.hops.hopsworks.common.dao.featurestore.datavalidation.DataValidationController;
+import io.hops.hopsworks.common.dao.featurestore.datavalidation.ValidationResult;
 import io.hops.hopsworks.common.dao.featurestore.featuregroup.FeaturegroupController;
 import io.hops.hopsworks.common.dao.featurestore.featuregroup.FeaturegroupDTO;
 import io.hops.hopsworks.common.dao.user.Users;
@@ -118,5 +119,18 @@ public class DataValidationResource {
         featurestore.getProject(), featureGroup);
     ConstraintGroupDTO response = ConstraintGroupDTO.fromConstraintGroups(constraintGroups);
     return Response.ok(response).build();
+  }
+  
+  @GET
+  @Path("{featuregroupId}/result")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getValidationResult(@PathParam("featuregroupId") Integer featureGroupId,
+      @Context SecurityContext sc) throws FeaturestoreException {
+    Users user = jwtHelper.getUserPrincipal(sc);
+    FeaturegroupDTO featureGroup = featuregroupController.getFeaturegroupWithIdAndFeaturestore(featurestore,
+        featureGroupId);
+    ValidationResult result = dataValidationController.getValidationResultForFeatureGroup(user,
+        featurestore.getProject(), featureGroup);
+    return Response.ok(result).build();
   }
 }
