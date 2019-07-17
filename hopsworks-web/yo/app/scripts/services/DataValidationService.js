@@ -39,4 +39,4 @@ angular.module('hopsWorksApp')
                         + featureStoreId + '/datavalidation/' + featureGroupId + '/result');
                 }
             }
-        }])
+        }]);
