@@ -1011,7 +1011,7 @@ public class ElasticController {
   
   public Long trainingDatasetsUsingFeature(String featureName)
     throws GenericException, ServiceException, ProjectException {
-    String xattrs = "xattrs=features:#{xattr_val}";
+    String xattrs = "xattrs=features.features.name:#{xattr_val}";
     Map<String, String> xattrMap = MLAssetListQueryParams.getXAttrsMap(xattrs);
     MLAssetListQueryParams assetPararms = MLAssetListQueryParams.instance(null, null,
       null, null, null, null, null,
