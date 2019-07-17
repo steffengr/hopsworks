@@ -62,7 +62,7 @@ public class DataValidationController {
       + Path.SEPARATOR + "%d";
   private static final String PATH_TO_DATA_VALIDATION_RULES = PATH_TO_DATA_VALIDATION + Path.SEPARATOR + "rules";
   private static final String PATH_TO_DATA_VALIDATION_RULES_FILE = PATH_TO_DATA_VALIDATION_RULES + Path.SEPARATOR
-      + "%s_%d-%d-rules.json";
+      + "%s_%d-rules.json";
   private static final String HDFS_FILE_PATH = "hdfs://%s";
   
   @EJB
@@ -72,18 +72,16 @@ public class DataValidationController {
   @EJB
   private Settings settings;
   
-  public void storeValidationRules() {
-  }
-  
   public String writeRulesToFile(Users user, Project project, FeaturegroupDTO featureGroup,
       List<ConstraintGroup> constraintGroups) throws FeaturestoreException {
+    LOGGER.log(Level.FINE, "Writing validation rules to file for feature group " + featureGroup.getName());
     String jsonRules = convert2deequRules(constraintGroups);
     DistributedFileSystemOps udfso = null;
     try {
       String hdfsUsername = hdfsUsersController.getHdfsUserName(project, user);
       udfso = distributedFsService.getDfsOps(hdfsUsername);
-      Path rulesPath = getDataValidationRulesFilePath(project, featureGroup.getName(), featureGroup.getVersion(),
-          udfso);
+      Path rulesPath = getDataValidationRulesFilePath(project, featureGroup.getName(), featureGroup.getVersion());
+      LOGGER.log(Level.FINEST, "Writing rules " + jsonRules + " to file " + rulesPath.toString());
       writeToHDFS(rulesPath, jsonRules, udfso);
       return String.format(HDFS_FILE_PATH, rulesPath.toString());
     } catch (IOException ex) {
@@ -99,6 +97,7 @@ public class DataValidationController {
   
   public List<ConstraintGroup> readRulesForFeatureGroup(Users user, Project project, FeaturegroupDTO featureGroup)
     throws FeaturestoreException {
+    LOGGER.log(Level.FINE, "Reading rules file for feature group " + featureGroup.getName());
     String hdfsUsername = hdfsUsersController.getHdfsUserName(project, user);
     DistributedFileSystemOps udfso = null;
     try {
@@ -108,6 +107,7 @@ public class DataValidationController {
       GlobFilter filter = new GlobFilter(featureGroup.getName() + "_*-rules.json");
       FileStatus[] rules = udfso.getFilesystem().globStatus(path2rules, filter);
       if (rules == null || rules.length == 0) {
+        LOGGER.log(Level.FINE, "Did not find any validation rules for " + featureGroup.getName());
         return Collections.EMPTY_LIST;
       }
       List<ConstraintGroup> constraintGroups = new ArrayList<>();
@@ -118,6 +118,7 @@ public class DataValidationController {
           ByteArrayOutputStream out = new ByteArrayOutputStream();
           IOUtils.copyBytes(inStream, out, 512);
           String content = out.toString("UTF-8");
+          LOGGER.log(Level.FINEST, "Found rules " + content + " for feature group " + featureGroup.getName());
           List<ConstraintGroup> groups = convertFromDeequRules(content);
           constraintGroups.addAll(groups);
           out.close();
@@ -137,6 +138,7 @@ public class DataValidationController {
   
   public ValidationResult getValidationResultForFeatureGroup(Users user, Project project, FeaturegroupDTO featureGroup)
     throws FeaturestoreException {
+    LOGGER.log(Level.FINE, "Fetching validation result for feature group " + featureGroup.getName());
     String hdfsUsername = hdfsUsersController.getHdfsUserName(project, user);
     DistributedFileSystemOps udfso = null;
     try {
@@ -146,6 +148,7 @@ public class DataValidationController {
       GlobFilter filter = new GlobFilter("*.json");
       FileStatus[] resultFiles = udfso.getFilesystem().globStatus(path2result, filter);
       if (resultFiles == null || resultFiles.length == 0) {
+        LOGGER.log(Level.FINE, "Did not find any validation result for " + featureGroup.getName());
         return new ValidationResult(ValidationResult.Status.Empty, Collections.EMPTY_LIST);
       }
       List<ConstraintResult> constraintResults = new ArrayList<>();
@@ -159,6 +162,7 @@ public class DataValidationController {
           IOUtils.copyBytes(inStream, out, 512);
           String[] constraintResultsJson = out.toString("UTF-8").split("\n");
           for (String cr : constraintResultsJson) {
+            LOGGER.log(Level.FINEST, "Found result " + cr + " for feature group " + featureGroup.getName());
             ConstraintResult constraintResult = gson.fromJson(cr, ConstraintResult.class);
             constraintResults.add(constraintResult);
           }
@@ -233,48 +237,35 @@ public class DataValidationController {
     try (FSDataOutputStream outStream = udfso.create(path2file)) {
       outStream.writeBytes(content);
       outStream.hflush();
+      LOGGER.log(Level.FINE, "Finished writing rules to file " + path2file.toString());
     }
   }
   
-  private Path getDataValidationRulesFilePath(Project project, String featureGroupName, Integer featureGroupVersion,
-      DistributedFileSystemOps udfso)
-    throws IOException {
-    Path path2rulesDir = new Path(String.format(PATH_TO_DATA_VALIDATION_RULES, project.getName()
-      + Path.SEPARATOR + "*"));
-    GlobFilter filter = new GlobFilter(featureGroupName + "_*-rules.json");
-    FileStatus[] rules = udfso.getFilesystem().globStatus(path2rulesDir, filter);
-    int fileVersion = 1;
-    if (rules != null) {
-      fileVersion = rules.length + 1;
-    }
+  private Path getDataValidationRulesFilePath(Project project, String featureGroupName, Integer featureGroupVersion) {
     return new Path(String.format(PATH_TO_DATA_VALIDATION_RULES_FILE, project.getName(), featureGroupName,
-        featureGroupVersion, fileVersion));
+        featureGroupVersion));
   }
   
   private String convert2deequRules(List<ConstraintGroup> constraintGroups) {
-    Gson constraintGroupSerializer = new GsonBuilder()
-        .registerTypeAdapter(ConstraintGroup.class, new ConstraintGroupSerializer())
-        .create();
+    Gson serializer = new Gson();
     JsonObject json = new JsonObject();
     JsonArray constraintGroupsJSON = new JsonArray();
     for (ConstraintGroup constraintGroup : constraintGroups) {
-      JsonElement constraintGroupJSON = constraintGroupSerializer.toJsonTree(constraintGroup);
+      JsonElement constraintGroupJSON = serializer.toJsonTree(constraintGroup);
       constraintGroupsJSON.add(constraintGroupJSON);
     }
     json.add("constraintGroups", constraintGroupsJSON);
-    return constraintGroupSerializer.toJson(json);
+    return serializer.toJson(json);
   }
   
   private List<ConstraintGroup> convertFromDeequRules(String rules) {
-    Gson constraintGroupsDeserializer = new GsonBuilder()
-        .registerTypeAdapter(ConstraintGroup.class, new ConstraintGroupDeserializer())
-        .create();
-    JsonElement topLevelObject = constraintGroupsDeserializer.fromJson(rules, JsonElement.class);
+    Gson deserializer = new Gson();
+    JsonElement topLevelObject = deserializer.fromJson(rules, JsonElement.class);
     JsonArray constraintGroupsJSON = topLevelObject.getAsJsonObject()
         .getAsJsonArray("constraintGroups");
     List<ConstraintGroup> constraintGroups = new ArrayList<>(constraintGroupsJSON.size());
     constraintGroupsJSON.forEach(cgj -> {
-      ConstraintGroup cg = constraintGroupsDeserializer.fromJson(cgj, ConstraintGroup.class);
+      ConstraintGroup cg = deserializer.fromJson(cgj, ConstraintGroup.class);
       constraintGroups.add(cg);
     });
     return constraintGroups;

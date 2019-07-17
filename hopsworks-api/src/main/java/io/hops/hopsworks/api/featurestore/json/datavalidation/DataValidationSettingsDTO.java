@@ -49,4 +49,10 @@ public class DataValidationSettingsDTO {
   public void setExecutableMainClass(String executableMainClass) {
     this.executableMainClass = executableMainClass;
   }
+  
+  @Override
+  public String toString() {
+    return "Rules path: " + validationRulesPath + " - exec path: " + executablePath
+        + " - main class: " + executableMainClass;
+  }
 }

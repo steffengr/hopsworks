@@ -48,6 +48,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Stateless
@@ -103,7 +104,7 @@ public class DataValidationResource {
     settings.setValidationRulesPath(rulesPath);
     settings.setExecutablePath(path2hopsverification);
     settings.setExecutableMainClass(MAIN_CLASS);
-    
+    LOGGER.log(Level.FINE, "Validation settings: " + settings);
     return Response.ok().entity(settings).build();
   }
   
